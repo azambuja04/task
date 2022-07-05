@@ -2,19 +2,24 @@
 title: "Technical Assessment"
 author: "Guilherme Azambuja"
 date: "05/07/2022"
-output: md_document
-always_allow_html: true
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    self_contained: true
+  github_document:
+    toc: true
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+### Technical Assessment 
+
 This file contains the data analysis as requested. I also developed a Dashboard in order to better display and interact with Outvio's databases.
 
 ## Dashboard Link
-
-### Technical Assessment 
 
 Regarding the data analysis, the first step is to load the required packages.
 
@@ -160,7 +165,7 @@ shipments %>%
 
 --- 
 
-### 2. How accurate is the delivery prediction? {.tabset .tabset-fade .tabset-pill}
+### 2. How accurate is the delivery prediction? {.tabset .tabset-fade}
 
 #### Delayed vs On Time orderds
 
