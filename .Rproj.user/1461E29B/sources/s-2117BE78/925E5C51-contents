@@ -111,3 +111,15 @@ shipments %>%
 
 shipments %>% 
   distinct(X_id, createdAt, )
+
+
+avg_orders <- shipments %>%
+  filter(!is.na(deliverDate)) %>% # Remove not delivered orders
+  group_by(courier) %>%
+  summarise(volume = n_distinct(X_id),
+            deliveryTime = mean(deliveryTime)) %>%
+  ungroup() %>%
+  summarise(mean_time = mean(deliveryTime),
+            mean_orders = mean(volume))
+
+avg_orders[2]

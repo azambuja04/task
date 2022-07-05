@@ -6,20 +6,21 @@ output:
   html_document:
     df_print: paged
     toc: true
+    toc_float: true
     self_contained: true
   github_document:
     toc: true
+    
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-### Technical Assessment 
+## Technical Assessment 
 
 This file contains the data analysis as requested. I also developed a Dashboard in order to better display and interact with Outvio's databases.
 
-## Dashboard Link
 
 Regarding the data analysis, the first step is to load the required packages.
 
@@ -66,6 +67,83 @@ shipments <- read.csv('data/shipments.csv', na.strings=c("NA","NaN", "")) %>%
 
 ---
 
+### Exploratory analysis {.tabset .tabset-fade}
+
+Taking a look at some informations to better know data, look for missing data and outliers.
+
+#### Looking for missing values
+
+It is important to ensure data quality before proceeding data analysis. There is some missing columns on all datasets, and would be interesting to check with the team responsible for those informations if it is ok. Since I don't have full context about data origin and tracking I won't remove rows based on missing values, as long as crucial information about shipiments, packages and products (X_id, packages, products) are present.
+
+Some packages don't present the package code, so woun't be possible to join those with the products data.
+
+```{r, message=FALSE, warning=FALSE}
+
+#Shipments missing values per column
+
+sapply(shipments, function(y) sum(length(which(is.na(y))))) %>% as.data.frame()
+
+#Packages missing values per column
+
+sapply(packages, function(y) sum(length(which(is.na(y))))) %>% as.data.frame()
+
+#Products missing values per column
+
+sapply(products, function(y) sum(length(which(is.na(y))))) %>% as.data.frame()
+
+```
+
+
+#### Available Data Range
+
+Apparently, mostly of the shipments present on the database were created at March 25. Taking a first look, the deliver time seems to be under control, since the major part of those shipments were delivered at March 27. 
+
+Would be interesting to deep dive those number in order to understand how couriers and methods impact the deliver time.
+
+```{r, message=FALSE, warning=FALSE}
+
+# Created shipments per day
+
+shipments %>% 
+  group_by(createdAt) %>%
+  summarise(count = n_distinct(X_id)) %>%
+  plot_ly(y = ~count, 
+          x = ~createdAt, 
+          type = 'bar') %>%
+  layout(xaxis = list(title = 'Creation Date'),
+         yxis = list(title = '# of orders'),
+         title = '# of orders per creation date')
+
+# Delivered shipments per day
+
+shipments %>% 
+  group_by(deliverDate) %>%
+  summarise(count = n_distinct(X_id)) %>%
+  plot_ly(y = ~count, 
+          x = ~deliverDate, 
+          type = 'bar') %>%
+  layout(xaxis = list(title = 'Deliver Date'),
+         yxis = list(title = '# of orders'),
+         title = '# of orders per deliver date')
+
+```
+
+#### Packages weight distribution
+
+Almost all packages weights less than 50 weight unities. It is possible to see some outliers weighting 200 weight unities.
+
+```{r, message=FALSE, warning=FALSE}
+
+# Created shipments per day
+
+packages %>% 
+  plot_ly(x = ~weight,
+          type = 'histogram')
+
+```
+
+---
+
 ## Minimum requirements {.tabset .tabset-fade}
 
 This section presents the resolution of the minimum requirements of this task.
@@ -101,6 +179,8 @@ shipments %>%
 
 ### 3. Average products per order
 
+Assuming that 1 order is equal to one shipment, in average, each order presents 2.85 products.
+
 ```{r, message=FALSE, warning=FALSE}
 
 shipments_aux <- shipments %>%
@@ -125,7 +205,6 @@ c('In average, each order presents 2.85 products.')
 
 ---
 
-
 ## Aditional Analysis
 
 In order to better explore the provided data bases, I formulate some questions to be answered through data analysis.
@@ -144,7 +223,10 @@ shipments %>%
   top_n(10) %>%
   plot_ly(y = ~count, 
           x = ~reorder(courier,desc(count)), 
-          type = 'bar')
+          type = 'bar') %>%
+  layout(yaxis = list(title = '# Orders'),
+         xaxis = list(title = 'Courier'),
+         title = '# of orders per Courier')
 
 ```
 
@@ -159,7 +241,10 @@ shipments %>%
   top_n(10) %>%
   plot_ly(y = ~count, 
           x = ~reorder(method,desc(count)), 
-          type = 'bar')
+          type = 'bar') %>%
+  layout(yaxis = list(title = '# Orders'),
+         xaxis = list(title = 'Method'),
+         title = '# of orders per Method')
 
 ```
 
@@ -173,16 +258,21 @@ Comparing the effective deliver time with the predicted, 16% of the orders have 
 
 ```{r, message=FALSE, warning=FALSE}
 
-shipments %>% 
+shipments %>%
+  mutate(const = 'Delayed?') %>%
   filter(!is.na(delayed)) %>% # Remove not delivered orders
-  group_by(delayed) %>%
+  group_by(delayed, const) %>%
   summarise(count = n_distinct(X_id)) %>%
   ungroup() %>%
   mutate(perc = count/sum(count)) %>% # Criando a visão percentual
   plot_ly(y = ~perc, 
-          x = ~delayed, 
+          x = ~const,
+          color = ~delayed,
           type = 'bar') %>%
-  layout(barmode = 'stack')
+  layout(barmode = 'stack') %>%
+  layout(yaxis = list(title = 'Percentage'),
+         xaxis = list(title = ''),
+         title = 'Percentage of delayed orders')
 
 ```
 
@@ -205,7 +295,10 @@ shipments %>%
           x = ~reorder(courier, desc(count)),
           color = ~delayed,
           type = 'bar') %>%
-  layout(barmode = 'stack')
+  layout(barmode = 'stack') %>%
+  layout(yaxis = list(title = '# of Orders'),
+         xaxis = list(title = 'Courier'),
+         title = 'Delayed vs On Time orders per Courier')
 
 
 ```
@@ -229,12 +322,15 @@ shipments %>%
           x = ~reorder(courier, desc(count)),
           color = ~delayed,
           type = 'bar') %>%
-  layout(barmode = 'stack')
+  layout(barmode = 'stack')%>%
+  layout(yaxis = list(title = 'Percentage of orders'),
+         xaxis = list(title = 'Courier'),
+         title = 'Percentage of Delayed vs On Time orders per Courier')
 
 ```
 
 
-#### How long the delyed orders took to arrive? 
+#### How many days the delayed orders took to arrive? 
 
 60% of the delayed orders were delayed by only one day. Almost 90% of the delayed orders were delayed by a maximum of 5 days.
 
@@ -248,45 +344,154 @@ shipments %>%
   mutate(perc = count/sum(count)) %>% # Criando a visão percentual
   plot_ly(x = ~predictedDiff, 
           y = ~perc, 
-          type = 'bar')
+          type = 'bar') %>%
+  layout(yaxis = list(title = 'Percentage of Orders'),
+         xaxis = list(title = 'Days of delay'),
+         title = 'Delayed days per delayed Packages - Predicted Deliver Date - Deliver Date')
 
 ```
 
 ---
 
-### 3. How can we compare couriers regarding performance?
+### 3. How can we compare couriers regarding performance? {.tabset .tabset-fade}
+
+#### Courier's delivery time vs number of orders
 
 One option to estimate which are the top performers courier is to look for the orders volume of delivers versus delivery Time. 
 
+The following graph displays each Courier based on deliverTime and volume of orders. The lines represents the average order per courier and the average deliverTime.
+
+Interpreting: Couriers at the top-left have more orders than average and lower deliveryTime, what could represent a good performance. On the other hand, couriers at the top-right presents high volume of orders but a deliveryTime above the average.
+
+The top-right courier is ups. Since it's a courier that has a high number of orders, it would be important to understand what is causing that increase on time.
+
+Also interesting is the fact that envialia is the main Courier in terms of number of orders. But, taking into account only On Time orders, mrw presents the highest absolut number of orders.
+
+
 ```{r, message=FALSE, warning=FALSE}
 
+# Found the average number of orders and the average deliver Time per courier 
+
+avg_order <- shipments %>%
+  filter(!is.na(deliverDate) & delayed == 'On Time') %>% # Remove not delivered orders  or delayed orders
+  group_by(courier) %>%
+  summarise(volume = n_distinct(X_id),
+            deliveryTime = mean(deliveryTime)) %>%
+  ungroup() %>%
+  summarise(mean_time = mean(deliveryTime),
+            mean_orders = mean(volume))
+
+# Dispaly plot comparing # of orders vs avg deliver time
+
 shipments %>%
-  filter(!is.na(deliverDate)) %>% # Remove not delivered orders
+  filter(!is.na(deliverDate) & delayed == 'On Time') %>% # Remove not delivered orders 
   group_by(courier) %>%
   summarise(volume = n_distinct(X_id),
             deliveryTime = mean(deliveryTime)) %>%
   plot_ly(x = ~deliveryTime,
          y = ~volume,
-         text = ~courier)
+         text = ~courier,
+         color = ~courier) %>%
+  layout(title = 'Couriers - Orders vs Deliver Time - Considering only On Time orders',
+         showlegend = FALSE,
+         shapes = list(list(
+                            type = "line", 
+                            y0 = 0, 
+                            y1 = 1, 
+                            yref = "paper",
+                            x0 = 3.88, 
+                            x1 = 3.88, 
+                            line = list(color = "gray")
+                          ), list(
+                            type = "line", 
+                            x0 = 0, 
+                            x1 = 1, 
+                            xref = "paper",
+                            y0 = 110, 
+                            y1 = 110, 
+                            line = list(color = "gray")
+                          )),
+         xaxis = list(title = 'Avg. Deliver Time',
+                      showgrid = FALSE, 
+                      zeroline = FALSE, 
+                      showticklabels = FALSE),
+         yaxis = list(title = 'Number of orders',
+                      showgrid = FALSE, 
+                      zeroline = FALSE, 
+                      showticklabels = FALSE))
 
 ```
 
+#### Method's delivery time vs number of orders
+
+Reproducing the same vision for methods, the result looks the same, since couriers almost always have only one relevant shipping method.
+
+
 ```{r, message=FALSE, warning=FALSE}
 
+# Found the average number of orders and the average deliver Time per courier 
+
+avg_order <- shipments %>%
+  filter(!is.na(deliverDate) & delayed == 'On Time') %>% # Remove not delivered orders  or delayed orders
+  group_by(method) %>%
+  summarise(volume = n_distinct(X_id),
+            deliveryTime = mean(deliveryTime)) %>%
+  ungroup() %>%
+  summarise(mean_time = mean(deliveryTime),
+            mean_orders = mean(volume))
+
+# Dispaly plot comparing # of orders vs avg deliver time
+
 shipments %>%
-  filter(!is.na(deliverDate) & delayed == 'On Time') %>% # Remove not delivered orders
-  group_by(courier) %>%
+  filter(!is.na(deliverDate) & delayed == 'On Time') %>% # Remove not delivered orders 
+  group_by(method) %>%
   summarise(volume = n_distinct(X_id),
             deliveryTime = mean(deliveryTime)) %>%
   plot_ly(x = ~deliveryTime,
          y = ~volume,
-         text = ~courier)
+         text = ~method,
+         color = ~method) %>%
+  layout(title = 'Methods - Orders vs Deliver Time - Considering only On Time orders',
+         showlegend = FALSE,
+         shapes = list(list(
+                            type = "line", 
+                            y0 = 0, 
+                            y1 = 1, 
+                            yref = "paper",
+                            x0 = 3.88, 
+                            x1 = 3.88, 
+                            line = list(color = "gray")
+                          ), list(
+                            type = "line", 
+                            x0 = 0, 
+                            x1 = 1, 
+                            xref = "paper",
+                            y0 = 110, 
+                            y1 = 110, 
+                            line = list(color = "gray")
+                          )),
+         xaxis = list(title = 'Avg. Deliver Time',
+                      showgrid = FALSE, 
+                      zeroline = FALSE, 
+                      showticklabels = FALSE),
+         yaxis = list(title = 'Number of orders',
+                      showgrid = FALSE, 
+                      zeroline = FALSE, 
+                      showticklabels = FALSE))
 
 ```
 
-### 4. How is the orders behavior during the time? Is there any sazonality?
+---
+
+### Total products price per shipment distribution
+
+First, it is necessary to join all the data tables. I use a inner join in order to analyze only shipments that contain products from the product table. I need to unnest the packages column in the shipment data table and unnest the products column in the packages table. Also, i'm removing products that have price equals to 0.
+
+The median order contains 61 euros products inside. However, there are outliers. Some orders contains 1000+ euros products.
 
 ```{r, message=FALSE, warning=FALSE}
+
+# Calculate the products price per order
 
 shipments_aux <- shipments %>%
   separate_rows(packages) %>% 
@@ -297,10 +502,18 @@ packages_aux <- packages %>%
   filter(!products %in% c('oid', ':', '')) # Unnest and create on row per product
 
 shipments_aux %>%
-  inner_join(packages_aux, by = c('packages' = 'X_id')) %>% # Join Shipments and Packages data
+  inner_join(packages_aux, by = c('packages' = 'X_id')) %>%
+  inner_join(products, by = c('products' = 'X_id')) %>%
+  filter(!is.na(price),
+         price > 0) %>% # remove products without price and that presents price equals to 0
   group_by(X_id) %>%
-  summarise(products = n_distinct(products)) %>% # Count # of products whithin each order
-  ungroup() %>%
-  summarise(products_per_order = mean(products)) 
+  summarise(total_price = sum(price)) %>%
+  plot_ly(y = ~total_price, type = 'box') %>%
+  layout(yaxis = list(title = 'Price per Shipment'),
+         xaxis = list(title = '',
+                      showgrid = FALSE, 
+                      zeroline = FALSE, 
+                      showticklabels = FALSE),
+         title = 'Products Price per order')
 
 ```
