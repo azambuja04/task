@@ -1,0 +1,6 @@
+"0",""
+"0","shipments %>% "
+"0","  filter(!is.na(deliverDate)) %>% # Remove not delivered orders"
+"0","  group_by(courier) %>%"
+"0","  summarise(mean = mean(deliveryTime)) %>%"
+"0","  arrange(desc(mean))"

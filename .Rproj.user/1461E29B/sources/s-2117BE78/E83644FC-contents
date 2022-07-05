@@ -1,0 +1,302 @@
+---
+title: "Technical Assessment"
+author: "Guilherme Azambuja"
+date: "05/07/2022"
+output: 
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This file contains the data analysis as requested. I also developed a Dashboard in order to better display and interact with Outvio's databases.
+
+## Dashboard Link
+
+### Technical Assessment 
+
+Regarding the data analysis, the first step is to load the required packages.
+
+```{r, message=FALSE, warning=FALSE}
+
+# Loading Packages
+
+library('tidyverse') # Package for data manipulation
+library('lubridate') # Manipulate date variables 
+library('plotly') # Package for data visualization
+library('DT') # Render some nice HTML tables
+
+
+```
+
+After that, it is time to read and import the data. After import databases using R, it was necessary to fix some variables types and create useful features.
+
+```{r, message=FALSE, warning=FALSE}
+
+# Reading data ----
+
+# Packages - Reading CSV data
+
+packages <- read.csv('data/packages.csv',  na.strings=c("NA","NaN", ""))
+
+# Products - Reading CSV data
+
+products <- read.csv('data/products.csv',  na.strings=c("NA","NaN", ""))
+
+# Shipments - Read CSV data and fix date formats
+
+shipments <- read.csv('data/shipments.csv', na.strings=c("NA","NaN", "")) %>%
+  mutate(createdAt = lubridate::date(createdAt),
+         deliverDate = lubridate::date(deliverDate),
+         estimatedDeliverDate = lubridate::date(estimatedDeliverDate),
+         pickupDate = lubridate::date(pickupDate),
+         processDate = lubridate::date(processDate),
+         deliveryTime = as.numeric(difftime(deliverDate, createdAt, units = "days")), # Create DeliveryTime as the difference in days between createdAt and deliverDate
+         predictedDiff = as.numeric(difftime(estimatedDeliverDate, deliverDate, units = "days")), # Time difference between predicted and delivered dates
+         delayed = ifelse(deliverDate > estimatedDeliverDate, 'Delayed', 'On Time')) # Create a variable that classifies delivered orders into Delayed or On Time
+
+
+```
+
+---
+
+## Minimum requirements {.tabset .tabset-fade}
+
+This section presents the resolution of the minimum requirements of this task.
+
+### 1. Average delivery time per courier
+
+DeuschePost presents the highest deliveryTime, followed by transaher and fedex.
+
+```{r, message=FALSE, warning=FALSE}
+
+shipments %>% 
+  filter(!is.na(deliverDate)) %>% # Remove not delivered orders
+  group_by(courier) %>%
+  summarise(mean = mean(deliveryTime)) %>%
+  arrange(desc(mean))
+
+```
+
+### 2. Average delivery time per shipping method
+
+
+"dhl express - gpt - priority (packet tracked)" presents the highest deliveryTime.
+
+```{r, message=FALSE, warning=FALSE}
+
+shipments %>% 
+  filter(!is.na(deliverDate)) %>% # Remove not delivered orders
+  group_by(courier) %>%
+  summarise(mean = mean(deliveryTime)) %>%
+  arrange(desc(mean))
+
+```
+
+### 3. Average products per order
+
+```{r, message=FALSE, warning=FALSE}
+
+shipments_aux <- shipments %>%
+  separate_rows(packages) %>% 
+  filter(!packages %in% c('oid', ':', '')) # Unnest and create one row per package
+
+packages_aux <- packages %>% 
+  separate_rows(products) %>%
+  filter(!products %in% c('oid', ':', '')) # Unnest and create on row per product
+
+products_per_order <- shipments_aux %>%
+  inner_join(packages_aux, by = c('packages' = 'X_id')) %>% # Join Shipments and Packages data
+  group_by(X_id) %>%
+  summarise(products = n_distinct(products)) %>% # Count # of products whithin each order
+  ungroup() %>%
+  summarise(products_per_order = mean(products))
+
+c('In average, each order presents 2.85 products.')
+
+```
+
+
+---
+
+
+## Aditional Analysis
+
+In order to better explore the provided data bases, I formulate some questions to be answered through data analysis.
+
+
+### 1. Which are the Most popular Courier and Method
+
+```{r, message=FALSE, warning=FALSE}
+
+# Top 10 most popular Courier
+
+shipments %>% 
+  group_by(courier) %>%
+  summarise(count = n_distinct(X_id)) %>%
+  arrange(desc(count)) %>%
+  top_n(10) %>%
+  plot_ly(y = ~count, 
+          x = ~reorder(courier,desc(count)), 
+          type = 'bar')
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+
+# Top 10 most popular method
+
+shipments %>% 
+  group_by(method) %>%
+  summarise(count = n_distinct(X_id)) %>%
+  arrange(desc(count)) %>%
+  top_n(10) %>%
+  plot_ly(y = ~count, 
+          x = ~reorder(method,desc(count)), 
+          type = 'bar')
+
+```
+
+--- 
+
+### 2. How accurate is the delivery prediction? {.tabset .tabset-fade .tabset-pill}
+
+#### Delayed vs On Time orderds
+
+Comparing the effective deliver time with the predicted, 16% of the orders have been delayed through the analyze time period.
+
+```{r, message=FALSE, warning=FALSE}
+
+shipments %>% 
+  filter(!is.na(delayed)) %>% # Remove not delivered orders
+  group_by(delayed) %>%
+  summarise(count = n_distinct(X_id)) %>%
+  ungroup() %>%
+  mutate(perc = count/sum(count)) %>% # Criando a visão percentual
+  plot_ly(y = ~perc, 
+          x = ~delayed, 
+          type = 'bar') %>%
+  layout(barmode = 'stack')
+
+```
+
+#### Delayed vs On Time orders per Courier
+
+The plot is comparing On Time delivered orders versus Delayed orders per courier. Envialia presents a difficult situation, since it is the most popular courier and, regarding the main couriers, is the one that presents more delayed orders.
+
+```{r, message=FALSE, warning=FALSE}
+
+shipments %>% 
+  filter(!is.na(delayed)) %>% # Remove not delivered orders
+  group_by(delayed, courier) %>%
+  summarise(count = n_distinct(X_id),
+            predictedDiff = mean(predictedDiff)) %>%
+  ungroup() %>%
+  group_by(courier) %>%
+  mutate(perc = count/sum(count)) %>% # Criando a visão percentual
+  ungroup() %>%
+  plot_ly(y = ~count, 
+          x = ~reorder(courier, desc(count)),
+          color = ~delayed,
+          type = 'bar') %>%
+  layout(barmode = 'stack')
+
+
+```
+
+#### Delayed vs On Time orders per Courier (Percentage)
+
+The plot is comparing On Time delivered orders versus Delayed orders per courier. Envialia presents a difficult situation, since it is the most popular courier and, regarding the main couriers, is the one that presents more delayed orders.
+
+```{r, message=FALSE, warning=FALSE}
+
+shipments %>% 
+  filter(!is.na(delayed)) %>% # Remove not delivered orders
+  group_by(delayed, courier) %>%
+  summarise(count = n_distinct(X_id),
+            predictedDiff = mean(predictedDiff)) %>%
+  ungroup() %>%
+  group_by(courier) %>%
+  mutate(perc = count/sum(count)) %>% # Criando a visão percentual
+  ungroup() %>%
+  plot_ly(y = ~perc, 
+          x = ~reorder(courier, desc(count)),
+          color = ~delayed,
+          type = 'bar') %>%
+  layout(barmode = 'stack')
+
+```
+
+
+#### How long the delyed orders took to arrive? 
+
+60% of the delayed orders were delayed by only one day. Almost 90% of the delayed orders were delayed by a maximum of 5 days.
+
+```{r, message=FALSE, warning=FALSE}
+
+shipments %>% 
+  filter(delayed == 'Delayed') %>% # Remove not delivered orders
+  group_by(predictedDiff) %>%
+  summarise(count = n_distinct(X_id)) %>%
+  ungroup() %>%
+  mutate(perc = count/sum(count)) %>% # Criando a visão percentual
+  plot_ly(x = ~predictedDiff, 
+          y = ~perc, 
+          type = 'bar')
+
+```
+
+---
+
+### 3. How can we compare couriers regarding performance?
+
+One option to estimate which are the top performers courier is to look for the orders volume of delivers versus delivery Time. 
+
+```{r, message=FALSE, warning=FALSE}
+
+shipments %>%
+  filter(!is.na(deliverDate)) %>% # Remove not delivered orders
+  group_by(courier) %>%
+  summarise(volume = n_distinct(X_id),
+            deliveryTime = mean(deliveryTime)) %>%
+  plot_ly(x = ~deliveryTime,
+         y = ~volume,
+         text = ~courier)
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+
+shipments %>%
+  filter(!is.na(deliverDate) & delayed == 'On Time') %>% # Remove not delivered orders
+  group_by(courier) %>%
+  summarise(volume = n_distinct(X_id),
+            deliveryTime = mean(deliveryTime)) %>%
+  plot_ly(x = ~deliveryTime,
+         y = ~volume,
+         text = ~courier)
+
+```
+
+### 4. How is the orders behavior during the time? Is there any sazonality?
+
+```{r, message=FALSE, warning=FALSE}
+
+shipments_aux <- shipments %>%
+  separate_rows(packages) %>% 
+  filter(!packages %in% c('oid', ':', '')) # Unnest and create one row per package
+
+packages_aux <- packages %>% 
+  separate_rows(products) %>%
+  filter(!products %in% c('oid', ':', '')) # Unnest and create on row per product
+
+shipments_aux %>%
+  inner_join(packages_aux, by = c('packages' = 'X_id')) %>% # Join Shipments and Packages data
+  group_by(X_id) %>%
+  summarise(products = n_distinct(products)) %>% # Count # of products whithin each order
+  ungroup() %>%
+  summarise(products_per_order = mean(products)) 
+
+```

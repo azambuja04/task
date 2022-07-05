@@ -1,0 +1,26 @@
+library(matlib)
+
+A <- matrix(c(50, 20, 0, 0,
+              30, 27, 15, 0,
+              18,  15, 16, 6), 3, 4, byrow=TRUE)
+
+colnames(A) <- c('Shipping', 'Returns', 'Tracking', 'Fullfilment')
+
+b <- c(1450, 3980, 2970)
+
+showEqn(A, b)
+
+Solve(A, b, fractions = FALSE)
+
+
+A <- matrix(c(50, 20), 1, 2, byrow=TRUE)
+
+colnames(A) <- c('Shipping', 'Returns')
+
+b <- c(1450)
+
+showEqn(A, b)
+
+Solve(A, b, fractions = FALSE)
+
+plotEqn(A,b)
