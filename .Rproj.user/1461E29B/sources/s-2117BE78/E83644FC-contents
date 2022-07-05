@@ -2,9 +2,8 @@
 title: "Technical Assessment"
 author: "Guilherme Azambuja"
 date: "05/07/2022"
-output: 
-  html_document:
-    df_print: paged
+output: md_document
+always_allow_html: true
 ---
 
 ```{r setup, include=FALSE}
