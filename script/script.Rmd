@@ -31,7 +31,6 @@ Regarding the data analysis, the first step is to load the required packages.
 library('tidyverse') # Package for data manipulation
 library('lubridate') # Manipulate date variables 
 library('plotly') # Package for data visualization
-library('DT') # Render some nice HTML tables
 
 
 ```
@@ -485,7 +484,7 @@ shipments %>%
 
 ### Total products price per shipment distribution
 
-First, it is necessary to join all the data tables. I use a inner join in order to analyze only shipments that contain products from the product table. I need to unnest the packages column in the shipment data table and unnest the products column in the packages table. Also, i'm removing products that have price equals to 0.
+First, it is necessary to join all the data tables. It was necessary to unnest the packages column in the shipment data table and unnest the products column in the packages table. Also, i'm removing products that have price equals to 0.
 
 The median order contains 61 euros products inside. However, there are outliers. Some orders contains 1000+ euros products.
 
